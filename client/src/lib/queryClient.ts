@@ -1,5 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// ✅ Backend base URL (Render)
+const API_BASE_URL = "https://svceace-backend.onrender.com";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -7,12 +10,15 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// --------------------
+// Mutations (POST, PUT, DELETE)
+// --------------------
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE_URL}${url}`, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -23,24 +29,34 @@ export async function apiRequest(
   return res;
 }
 
+// --------------------
+// Queries (GET)
+// --------------------
 type UnauthorizedBehavior = "returnNull" | "throw";
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
+    const res = await fetch(
+      `${API_BASE_URL}${queryKey.join("/")}`,
+      {
+        credentials: "include",
+      }
+    );
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      return null as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return (await res.json()) as T;
   };
 
+// --------------------
+// Query Client
+// --------------------
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
